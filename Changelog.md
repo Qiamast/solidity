@@ -8,6 +8,8 @@ Language Features:
 Compiler Features:
  * LSP: Add rudimentary support for semantic highlighting.
  * Yul Optimizer: Improve inlining heuristics for via IR code generation and pure Yul compilation.
+ * Language Server: Always add ``{project_root}/node_modules`` to include search paths.
+ * Language Server: Adds support for configuring extra include paths ``include-paths`` JSON settings object that can be passed during LSP configuration stage.
 
 
 Bugfixes:
