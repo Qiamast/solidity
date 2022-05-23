@@ -1146,7 +1146,7 @@ void CompilerUtils::convertType(
 		}
 
 		// stack:  <source ref> <mem start> <mem data pos>
-		m_context << u256(arrayType.memoryDataSize()) << Instruction::ADD;
+		m_context << u256(components.size() * arrayType.baseType()->memoryHeadSize()) << Instruction::ADD;
 		// stack:  <source ref> <mem start> <mem data end>
 		for (Type const* component: components | ranges::views::reverse)
 		{
