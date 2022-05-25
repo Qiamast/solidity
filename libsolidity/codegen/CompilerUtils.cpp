@@ -463,6 +463,7 @@ void CompilerUtils::encodeToMemory(
 	// store memory start pointer
 	m_context << Instruction::DUP1;
 
+	ArrayUtils utils(m_context);
 	unsigned argSize = CompilerUtils::sizeOnStack(_givenTypes);
 	unsigned stackPos = 0; // advances through the argument values
 	unsigned dynPointers = 0; // number of dynamic head pointers on the stack
@@ -480,6 +481,14 @@ void CompilerUtils::encodeToMemory(
 				StackTooDeepError,
 				util::stackTooDeepString
 			);
+			stackPos += _givenTypes[i]->sizeOnStack();
+		}
+		else if (InlineArrayType const* inlineArrayType = dynamic_cast<InlineArrayType const*>(_givenTypes[i]))
+		{
+			ArrayType const* arrayType = dynamic_cast<ArrayType const*>(_targetTypes[i]);
+			unsigned const sourceStackPosition = argSize - stackPos + dynPointers - inlineArrayType->sizeOnStack() + 2;
+			utils.moveInlineArrayToMemory(*inlineArrayType, *arrayType, sourceStackPosition, _padToWordBoundaries);
+			argSize -= inlineArrayType->sizeOnStack();
 		}
 		else
 		{
@@ -521,8 +530,10 @@ void CompilerUtils::encodeToMemory(
 			}
 			else
 				storeInMemoryDynamic(*type, _padToWordBoundaries, needCleanup);
+			stackPos += _givenTypes[i]->sizeOnStack();
 		}
-		stackPos += _givenTypes[i]->sizeOnStack();
+
+
 	}
 
 	// now copy the dynamic part
@@ -546,7 +557,18 @@ void CompilerUtils::encodeToMemory(
 			m_context << dupInstruction(2 + dynPointers - thisDynPointer);
 			m_context << Instruction::MSTORE;
 			// stack: ... <end_of_mem>
-			if (_givenTypes[i]->category() == Type::Category::StringLiteral)
+			if (InlineArrayType const* inlineArrayType = dynamic_cast<InlineArrayType const*>(_givenTypes[i]))
+			{
+				ArrayType const* arrayType = dynamic_cast<ArrayType const*>(_targetTypes[i]);
+
+				m_context << u256(inlineArrayType->components().size());
+				storeInMemoryDynamic(*TypeProvider::uint256(), true);
+
+				unsigned const sourceStackPosition = argSize - stackPos + dynPointers - inlineArrayType->sizeOnStack() + 2;
+				utils.moveInlineArrayToMemory(*inlineArrayType, *arrayType, sourceStackPosition, _padToWordBoundaries);
+				argSize -= inlineArrayType->sizeOnStack();
+			}
+			else if (_givenTypes[i]->category() == Type::Category::StringLiteral)
 			{
 				auto const& strType = dynamic_cast<StringLiteralType const&>(*_givenTypes[i]);
 				auto const size = strType.value().size();

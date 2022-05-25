@@ -65,6 +65,17 @@ public:
 	/// Stack pre: memory_offset source_item
 	/// Stack post: memory_offest + length(padded)
 	void copyArrayToMemory(ArrayType const& _sourceType, bool _padToWordBoundaries = true) const;
+
+	/// Moves inline array from the stack to a given position in memory.
+	/// @param sourcePosition the stack offset of the source
+	/// Stack pre: source ... target_reference
+	/// Stack post: ... target_reference + length(padded)
+	void moveInlineArrayToMemory(
+		InlineArrayType const& _sourceType,
+		ArrayType const& _targetType,
+		unsigned _sourcePosition,
+		bool _padToWordBoundaries = true) const;
+
 	/// Clears the given dynamic or static array.
 	/// Stack pre: storage_ref storage_byte_offset
 	/// Stack post:

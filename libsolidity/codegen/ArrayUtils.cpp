@@ -285,8 +285,6 @@ void ArrayUtils::copyArrayToStorage(ArrayType const& _targetType, ArrayType cons
 			_context.appendJumpTo(copyLoopStart);
 			_context << copyLoopEnd;
 
-			_context << copyLoopEndWithoutByteOffset;
-
 			if (haveByteOffsetTarget)
 			{
 				utils.clearLeftoversInSlot(*targetBaseType, byteOffsetSize, 2 + byteOffsetSize);
@@ -295,6 +293,7 @@ void ArrayUtils::copyArrayToStorage(ArrayType const& _targetType, ArrayType cons
 
 			if (haveByteOffsetSource)
 				_context << Instruction::POP;
+			_context << copyLoopEndWithoutByteOffset;
 
 			// zero-out leftovers in target
 			// stack: target_ref target_data_end source_data_pos target_data_pos_updated source_data_end
@@ -725,6 +724,52 @@ void ArrayUtils::copyArrayToMemory(ArrayType const& _sourceType, bool _padToWord
 		}
 		m_context << loopEnd << Instruction::POP << Instruction::POP;
 	}
+}
+
+void ArrayUtils::moveInlineArrayToMemory(
+	InlineArrayType const& _sourceType,
+	ArrayType const& _targetType,
+	unsigned _sourcePosition,
+	bool _padToWordBoundaries) const
+{
+	auto const& components = _sourceType.components();
+	u256 const memoryStride =
+		_padToWordBoundaries ?
+		(_targetType.memoryStride() + 31) / 32 * 32 :
+		_targetType.memoryStride();
+
+	// value... ... target_pos
+	m_context << u256(components.size() * memoryStride) << Instruction::ADD;
+	// value... ... target_pos_end
+	m_context << Instruction::DUP1;
+	// value... ... target_pos_end target_pos_end
+
+	CompilerUtils utils(m_context);
+	for (Type const* component: components | ranges::views::reverse)
+	{
+		solAssert(
+			component->category() != Type::Category::InlineArray &&
+			component->category() != Type::Category::Array &&
+			component->category() != Type::Category::ArraySlice);
+
+		// values... ... target_pos_end component_pos_end
+		m_context << memoryStride << Instruction::SWAP1 << Instruction::SUB;
+		// values... ... target_pos_end component_pos
+		m_context << Instruction::DUP1;
+		// values... ... target_pos_end component_pos component_pos
+		utils.moveToStackTop(_sourcePosition + 2, component->sizeOnStack());
+		// values... ... target_pos_end component_pos component_pos value
+		utils.convertType(*component, *_targetType.baseType());
+		// values... ... target_pos_end component_pos component_pos converted_value
+		utils.storeInMemoryDynamic(*_targetType.baseType());
+		// values... ... target_pos_end component_pos component_pos_end
+		m_context << Instruction::POP;
+		// values... ... target_pos_end component_pos
+	}
+
+	// ... target_pos_end component_pos
+	m_context << Instruction::POP;
+	// ... target_pos_end
 }
 
 void ArrayUtils::clearArray(ArrayType const& _typeIn) const

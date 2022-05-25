@@ -22,5 +22,5 @@ contract C {
 // ----
 // one() -> 3
 // gas legacy: 140260
-// gas legacyOptimized: 140100
+// gas legacyOptimized: 140098
 // two() -> FAILURE, hex"4e487b71", 0x51
